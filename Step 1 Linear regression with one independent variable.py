@@ -37,18 +37,3 @@ plt.plot(x_test, y_pred, color='black')
 plt.xlabel('Rating')
 plt.ylabel('Salary')
 plt.show()
-
-# Analyze the data using print statements
-
-# Calculate the Pearson correlation coefficient between rating and salary
-corr, p_value = pearsonr(x_test['rating'], y_test)
-print(f'Pearson correlation coefficient: {corr:.5f}')
-print(f'P-value: {p_value:.5f}')
-
-# Test the hypothesis of equal variances of salaries in two groups based on rating (above and below the mean)
-rating_mean = x_test['rating'].mean()
-group1 = y_test[x_test['rating'] < rating_mean]
-group2 = y_test[x_test['rating'] >= rating_mean]
-stat, p_value = levene(group1, group2)
-print(f'Levene statistic: {stat:.5f}')
-print(f'P-value: {p_value:.5f}')
