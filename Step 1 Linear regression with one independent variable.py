@@ -37,3 +37,29 @@ plt.plot(x_test, y_pred, color='black')
 plt.xlabel('Rating')
 plt.ylabel('Salary')
 plt.show()
+# Create a scatter plot showing the relationship between rating and salary and its linear approximation
+plt.scatter(x_test, y_test, color='green', marker='o', label=f'Actual response (y = {y_test.name})')
+plt.scatter(x_test, y_pred, color='red', marker='s', label=f'Predicted response (f(xi) = '
+                                                           f'{model.intercept_:.2f} + {model.coef_[0]:.2f}xi)')
+plt.plot(x_test, model.predict(x_test), color='black', label=f'Estimated regression line (f(x) ='
+                                                             f' {model.intercept_:.2f} + {model.coef_[0]:.2f}x)')
+plt.plot(x_test, y_test - y_pred, color='black', linestyle='--', label='Residuals (yi - f(xi))')
+plt.xlabel('Rating')
+plt.ylabel('Salary')
+plt.legend(loc='upper right')
+plt.show()
+
+
+# Analyze the data using print statements
+# Calculate the Pearson correlation coefficient between rating and salary
+corr, p_value = pearsonr(x_test['rating'], y_test)
+print(f'Pearson correlation coefficient: {corr:.5f}')
+print(f'P-value: {p_value:.5f}')
+
+# Test the hypothesis of equal variances of salaries in two groups based on rating (above and below the mean)
+rating_mean = x_test['rating'].mean()
+group1 = y_test[x_test['rating'] < rating_mean]
+group2 = y_test[x_test['rating'] >= rating_mean]
+stat, p_value = levene(group1, group2)
+print(f'Levene statistic: {stat:.5f}')
+print(f'P-value: {p_value:.5f}')
