@@ -1,65 +1,97 @@
-"""Step 1 Linear regression with one independent variable"""
+"""Step 2 Linear regression with many independent variables"""
 
 import pandas as pd
-import matplotlib.pyplot as plt
-from sklearn.linear_model import LinearRegression
-from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression,  LassoCV
 from sklearn.metrics import mean_absolute_percentage_error
-from scipy.stats import pearsonr, levene
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.feature_selection import SelectFromModel
+from sklearn.pipeline import make_pipeline
+from scipy import stats
+import numpy as np
 
-# Load data from csv file
-df = pd.read_csv('data.csv')
 
-# Create x as a dataframe with the rating column and y as a series with the salary column
-x = df[['rating']]
-y = df['salary']
+# Step 1: Download the data using pandas.read_csv
+data = pd.read_csv("data.csv")
 
-# Split predictor x and target variable y into training and testing sets
+# Step 2: Make x a data frame with predictors and y a series with salary
+# Remove the target variable from the data
+x = data.drop("salary", axis=1)
+# One-hot encode categorical variables
+x = pd.get_dummies(x)
+# Select the target variable
+y = data["salary"]
+
+# Step 3: Divide the predictors and the target into training and test parts
+# Use test_size=0.3 and random_state=100
 x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.3, random_state=100)
 
-# Train a linear regression model on the training data, predicting salary based on rating
-model = LinearRegression()
-model.fit(x_train, y_train)
+# Step 4: Feature selection using LassoCV
+scaler = StandardScaler()
+lasso = LassoCV(cv=5, random_state=100)
+sfm = SelectFromModel(lasso)
 
-# Predict salary using the trained model based on the testing data and calculate MAPE
-y_pred = model.predict(x_test)
+pipe = make_pipeline(scaler, sfm, LinearRegression())
+
+pipe.fit(x_train, y_train)
+
+# Step 5: Predict wages using the fitted model based on the test data and calculate the MAPE
+y_pred = pipe.predict(x_test)
 mape = mean_absolute_percentage_error(y_test, y_pred)
 
-# Output three floating-point numbers: intercept b0, slope b1, and MAPE,
-# rounded to five decimal places and separated by a space
-b0 = model.intercept_
-b1 = model.coef_[0]
-print(f'{b0:.5f} {b1:.5f} {mape:.5f}')
+# Step 6: Print three floating-point numbers: b0 and b1 coefficients and MAPE,
+# rounded to five decimal places and separated by spaces
+b0 = pipe.named_steps['linearregression'].intercept_
+b1 = pipe.named_steps['linearregression'].coef_[0]
+print(f"{b0:.5f} {b1:.5f} {mape:.5f}")
 
-# Create a scatter plot showing the relationship between rating and salary and its linear approximation
-plt.scatter(x_test, y_test, color='blue')
-plt.plot(x_test, y_pred, color='black')
-plt.xlabel('Rating')
-plt.ylabel('Salary')
-plt.show()
-# Create a scatter plot showing the relationship between rating and salary and its linear approximation
-plt.scatter(x_test, y_test, color='green', marker='o', label=f'Actual response (y = {y_test.name})')
-plt.scatter(x_test, y_pred, color='red', marker='s', label=f'Predicted response (f(xi) = '
-                                                           f'{model.intercept_:.2f} + {model.coef_[0]:.2f}xi)')
-plt.plot(x_test, model.predict(x_test), color='black', label=f'Estimated regression line (f(x) ='
-                                                             f' {model.intercept_:.2f} + {model.coef_[0]:.2f}x)')
-plt.plot(x_test, y_test - y_pred, color='black', linestyle='--', label='Residuals (yi - f(xi))')
-plt.xlabel('Rating')
-plt.ylabel('Salary')
-plt.legend(loc='upper right')
-plt.show()
+# Draw a scatter plot showing the relationship between predictors and salary
+x_test_numeric = x_test.select_dtypes(include=[np.number])
+if not x_test_numeric.empty:
+    for col in x_test_numeric.columns:
+        # Get the slope, intercept, and other statistics of the linear regression
+        slope, intercept, r, p, std_err = stats.linregress(x_test[col], y_test)
 
+        # Define a function that represents the regression line
+        def myfunc(x_func):
+            return slope * x_func + intercept
+        # Apply the function to the x_func values and get the y values for the line
+        mymodel = list(map(myfunc, x_test[col]))
+        # Plot the scatter plot and the regression line
+        plt.scatter(x_test[col], y_test, color="blue", label="Actual response")
+        plt.plot(x_test[col], mymodel, color="red", label="Estimated regression line f(x)")
+        plt.xlabel(col)
+        plt.ylabel("salary")
+        plt.legend()
+        plt.show()
+else:
+    print("No numeric columns found in x_test dataframe.")
 
-# Analyze the data using print statements
-# Calculate the Pearson correlation coefficient between rating and salary
-corr, p_value = pearsonr(x_test['rating'], y_test)
-print(f'Pearson correlation coefficient: {corr:.5f}')
-print(f'P-value: {p_value:.5f}')
+# Add numeric analysis of data and model using print statements
+# Print the number of observations in the dataset
+print("Number of observations:", len(data))
 
-# Test the hypothesis of equal variances of salaries in two groups based on rating (above and below the mean)
-rating_mean = x_test['rating'].mean()
-group1 = y_test[x_test['rating'] < rating_mean]
-group2 = y_test[x_test['rating'] >= rating_mean]
-stat, p_value = levene(group1, group2)
-print(f'Levene statistic: {stat:.5f}')
-print(f'P-value: {p_value:.5f}')
+# Print descriptive statistics for the variables
+print("Descriptive statistics for variables:")
+print(data.describe())
+
+# Select only the numerical columns for the correlation matrix calculation
+num_cols = data.select_dtypes(include=["int64", "float64"]).columns
+corr_matrix = data[num_cols].corr()
+
+# Print the correlation matrix for the numerical variables
+print("Correlation matrix for variables:")
+print(corr_matrix)
+
+# Print the R-squared for the model on the test data
+print("R-squared for the model:")
+print(pipe.score(x_test, y_test))
+
+# Print the coefficients of the model
+print("Coefficients of the model:")
+for idx, col_name in enumerate(x_train.columns):
+    coef = pipe.named_steps['linearregression'].coef_
+    if idx < len(coef):
+        print(f"{col_name}: {coef[idx]}")
+print(f"Intercept: {pipe.named_steps['linearregression'].intercept_}")
